@@ -1,5 +1,6 @@
 package fr.ub.m2gl;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,9 @@ import javax.ws.rs.core.Response;
 
 import org.bson.Document;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
 import com.mongodb.client.FindIterable;
@@ -24,7 +27,6 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.util.JSON;
 
 @Path("/users")
 public class UserRessource {
@@ -45,13 +47,21 @@ public class UserRessource {
 	public Response readUsers() {
 		FindIterable<Document> iterDoc = collection.find();
 		MongoCursor<Document> it = iterDoc.iterator();	
-		List<Document> list = new ArrayList<Document>();
+		List<User> users = new ArrayList<User>();
 		
 		while(it.hasNext()) {
-			list.add(it.next());
+			try {
+				 users.add(mapper.readValue(it.next().toJson(), User.class));
+			} catch (JsonParseException e) {
+				e.printStackTrace();
+			} catch (JsonMappingException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
-		return Response.ok(JSON.serialize(list)).build();
+		return Response.status(Response.Status.OK).entity(users).build();
 	}
 		
 	@POST
@@ -123,6 +133,16 @@ public class UserRessource {
 		
 		Document userDocument = collection.find(Filters.eq("id", id)).first();
 		result = userDocument.toJson();
-		return Response.status(Response.Status.OK).entity(result).build();
+		User user = new User();
+		try {
+			user = mapper.readValue(result, User.class);
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return Response.status(Response.Status.OK).entity(user).build();
 	}
 }
